@@ -34,7 +34,8 @@ namespace Pinetime {
                                  Controllers::Settings& settingsController,
                                  Controllers::HeartRateController& heartRateController,
                                  Controllers::MotionController& motionController,
-                                 Controllers::FS& filesystem);
+                                 Controllers::FS& filesystem,
+                                 Controllers::PomodoroController& pomodoroController);
         ~WatchFaceCasioStyleG7710() override;
 
         void Refresh() override;
@@ -52,6 +53,9 @@ namespace Pinetime {
         Utility::DirtyValue<bool> heartbeatRunning {};
         Utility::DirtyValue<bool> notificationState {};
         Utility::DirtyValue<std::chrono::time_point<std::chrono::system_clock, std::chrono::days>> currentDate;
+        Utility::DirtyValue<std::chrono::seconds> pomodoroTimeRemaining {};
+        Utility::DirtyValue<Controllers::PomodoroController::SessionState> pomodoroState {};
+        Utility::DirtyValue<Controllers::PomodoroController::SessionType> pomodoroSessionType {};
 
         lv_point_t line_icons_points[3] {{0, 5}, {117, 5}, {122, 0}};
         lv_point_t line_day_of_week_number_points[4] {{0, 0}, {100, 0}, {95, 95}, {0, 95}};
@@ -84,6 +88,8 @@ namespace Pinetime {
         lv_obj_t* stepValue;
         lv_obj_t* notificationIcon;
         lv_obj_t* line_icons;
+        lv_obj_t* pomodoroIcon;
+        lv_obj_t* pomodoroValue;
 
         BatteryIcon batteryIcon;
 
@@ -94,6 +100,7 @@ namespace Pinetime {
         Controllers::Settings& settingsController;
         Controllers::HeartRateController& heartRateController;
         Controllers::MotionController& motionController;
+        Controllers::PomodoroController& pomodoroController;
 
         lv_task_t* taskRefresh;
         lv_font_t* font_dot40 = nullptr;
@@ -115,7 +122,8 @@ namespace Pinetime {
                                                      controllers.settingsController,
                                                      controllers.heartRateController,
                                                      controllers.motionController,
-                                                     controllers.filesystem);
+                                                     controllers.filesystem,
+                                                     controllers.pomodoroController);
       };
 
       static bool IsAvailable(Pinetime::Controllers::FS& filesystem) {

@@ -355,8 +355,6 @@ namespace Pinetime {
       };
 
       void SetPomodoroShortBreakMinutes(uint8_t minutes) {
-        if (minutes < 3) minutes = 3;
-        if (minutes > 15) minutes = 15;
         if (minutes != settings.pomodoro.shortBreakMinutes) {
           settingsChanged = true;
         }
@@ -368,8 +366,6 @@ namespace Pinetime {
       };
 
       void SetPomodoroLongBreakMinutes(uint8_t minutes) {
-        if (minutes < 10) minutes = 10;
-        if (minutes > 45) minutes = 45;
         if (minutes != settings.pomodoro.longBreakMinutes) {
           settingsChanged = true;
         }

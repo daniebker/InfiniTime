@@ -12,6 +12,7 @@
 #include "components/heartrate/HeartRateController.h"
 #include "components/motion/MotionController.h"
 #include "components/settings/Settings.h"
+#include "components/pomodoro/PomodoroController.h"
 using namespace Pinetime::Applications::Screens;
 
 WatchFaceCasioStyleG7710::WatchFaceCasioStyleG7710(Controllers::DateTime& dateTimeController,
@@ -21,7 +22,8 @@ WatchFaceCasioStyleG7710::WatchFaceCasioStyleG7710(Controllers::DateTime& dateTi
                                                    Controllers::Settings& settingsController,
                                                    Controllers::HeartRateController& heartRateController,
                                                    Controllers::MotionController& motionController,
-                                                   Controllers::FS& filesystem)
+                                                   Controllers::FS& filesystem,
+                                                   Controllers::PomodoroController& pomodoroController)
   : currentDateTime {{}},
     batteryIcon(false),
     dateTimeController {dateTimeController},
@@ -30,7 +32,8 @@ WatchFaceCasioStyleG7710::WatchFaceCasioStyleG7710(Controllers::DateTime& dateTi
     notificatioManager {notificatioManager},
     settingsController {settingsController},
     heartRateController {heartRateController},
-    motionController {motionController} {
+    motionController {motionController},
+    pomodoroController {pomodoroController} {
 
   lfs_file f = {};
   if (filesystem.FileOpen(&f, "/fonts/lv_font_dots_40.bin", LFS_O_RDONLY) >= 0) {
@@ -158,7 +161,16 @@ WatchFaceCasioStyleG7710::WatchFaceCasioStyleG7710(Controllers::DateTime& dateTi
   lv_label_set_text_static(heartbeatValue, "");
   lv_obj_align(heartbeatValue, heartbeatIcon, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
 
-  // TODO: Add here Current Pomodoro Time + session x/y
+  // Pomodoro timer display (centered between heartbeat and steps)
+  pomodoroIcon = lv_label_create(lv_scr_act(), nullptr);
+  lv_label_set_text_static(pomodoroIcon, Symbols::stopWatch);
+  lv_obj_set_style_local_text_color(pomodoroIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color_text);
+  lv_obj_align(pomodoroIcon, lv_scr_act(), LV_ALIGN_IN_BOTTOM_MID, -20, -2);
+
+  pomodoroValue = lv_label_create(lv_scr_act(), nullptr);
+  lv_obj_set_style_local_text_color(pomodoroValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color_text);
+  lv_label_set_text_static(pomodoroValue, "");
+  lv_obj_align(pomodoroValue, pomodoroIcon, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
 
   stepValue = lv_label_create(lv_scr_act(), nullptr);
   lv_obj_set_style_local_text_color(stepValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color_text);
@@ -311,6 +323,41 @@ void WatchFaceCasioStyleG7710::Refresh() {
     lv_label_set_text_fmt(stepValue, "%lu", stepCount.Get());
     lv_obj_realign(stepValue);
     lv_obj_realign(stepIcon);
+  }
+
+  // Update pomodoro timer display
+  pomodoroState = pomodoroController.GetCurrentState();
+  pomodoroSessionType = pomodoroController.GetCurrentSessionType();
+  auto timeRemaining = pomodoroController.GetTimeRemaining();
+  pomodoroTimeRemaining = std::chrono::duration_cast<std::chrono::seconds>(timeRemaining);
+  
+  if (pomodoroState.IsUpdated() || pomodoroTimeRemaining.IsUpdated() || pomodoroSessionType.IsUpdated()) {
+    if (pomodoroState.Get() == Controllers::PomodoroController::SessionState::Active) {
+      // Show timer when active
+      auto totalSeconds = pomodoroTimeRemaining.Get().count();
+      auto minutes = totalSeconds / 60;
+      auto seconds = totalSeconds % 60;
+      
+      // Show session indicator: W=Work, S=Short break, L=Long break
+      const char* sessionIndicator = "";
+      if (pomodoroSessionType.Get() == Controllers::PomodoroController::SessionType::Work) {
+        sessionIndicator = "W";
+      } else if (pomodoroSessionType.Get() == Controllers::PomodoroController::SessionType::ShortBreak) {
+        sessionIndicator = "S";
+      } else {
+        sessionIndicator = "L";
+      }
+      
+      lv_label_set_text_fmt(pomodoroValue, "%s %02ld:%02ld", sessionIndicator, minutes, seconds);
+      lv_obj_set_style_local_text_color(pomodoroIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color_text);
+    } else {
+      // Hide when not active
+      lv_label_set_text_static(pomodoroValue, "");
+      lv_obj_set_style_local_text_color(pomodoroIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, lv_color_hex(0x1B1B1B));
+    }
+    
+    lv_obj_realign(pomodoroIcon);
+    lv_obj_realign(pomodoroValue);
   }
 }
 
