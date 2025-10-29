@@ -118,6 +118,12 @@ void PomodoroController::OnTimerCallback() {
     auto workDuration = GetSessionDuration(SessionType::Work);
     auto workMinutes = std::chrono::duration_cast<std::chrono::minutes>(workDuration);
     sessionStatistics.AddWorkTime(workMinutes);
+    
+    // Transition to break type for next session
+    currentSessionType = DetermineBreakType();
+  } else {
+    // After a break, transition back to work
+    currentSessionType = SessionType::Work;
   }
   
   TransitionToCompleted();

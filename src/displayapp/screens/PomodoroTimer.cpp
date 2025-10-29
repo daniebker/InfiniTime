@@ -19,6 +19,8 @@ PomodoroTimer::PomodoroTimer(AppControllers& controllers) : controllers(controll
   notificationContainer = nullptr;
   lblNotification = nullptr;
   taskHideNotification = nullptr;
+  taskVibrationPattern = nullptr;
+  vibrationStep = 0;
 
   // Create session type label at the top
   lblSessionType = lv_label_create(lv_scr_act(), nullptr);
@@ -27,27 +29,36 @@ PomodoroTimer::PomodoroTimer(AppControllers& controllers) : controllers(controll
   lv_label_set_text_static(lblSessionType, "Work Session");
   lv_obj_align(lblSessionType, lv_scr_act(), LV_ALIGN_IN_TOP_MID, 0, 10);
 
-  // Create main time display (large, centered)
-  lblTime = lv_label_create(lv_scr_act(), nullptr);
-  lv_obj_set_style_local_text_font(lblTime, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_42);
-  lv_obj_set_style_local_text_color(lblTime, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_WHITE);
-  lv_label_set_text_static(lblTime, "25:00");
-  lv_obj_align(lblTime, lv_scr_act(), LV_ALIGN_CENTER, 0, -10);
+  // Create time display using Counter widgets (centered)
+  colonLabel = lv_label_create(lv_scr_act(), nullptr);
+  lv_obj_set_style_local_text_font(colonLabel, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_42);
+  lv_obj_set_style_local_text_color(colonLabel, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_WHITE);
+  lv_label_set_text_static(colonLabel, ":");
+  lv_obj_align(colonLabel, lv_scr_act(), LV_ALIGN_CENTER, 0, 10);
+
+  minuteCounter.Create();
+  secondCounter.Create();
+  lv_obj_align(minuteCounter.GetObject(), colonLabel, LV_ALIGN_OUT_LEFT_MID, -5, 0);
+  lv_obj_align(secondCounter.GetObject(), colonLabel, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
+
+  // Hide controls since this is a countdown timer, not a setter
+  minuteCounter.HideControls();
+  secondCounter.HideControls();
 
   // Create progress bar for visual countdown
   progressBar = lv_bar_create(lv_scr_act(), nullptr);
   lv_obj_set_size(progressBar, 180, 6);
-  lv_obj_align(progressBar, lblTime, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+  lv_obj_align(progressBar, colonLabel, LV_ALIGN_OUT_BOTTOM_MID, 0, 25);
   lv_obj_set_style_local_bg_color(progressBar, LV_BAR_PART_BG, LV_STATE_DEFAULT, Colors::bgDark);
   lv_obj_set_style_local_bg_color(progressBar, LV_BAR_PART_INDIC, LV_STATE_DEFAULT, Colors::highlight);
   lv_bar_set_range(progressBar, 0, 100);
   lv_bar_set_value(progressBar, 100, LV_ANIM_OFF);
 
-  // Create session progress indicator
+  // Create session progress indicator (hidden - we use top right display instead)
   lblSessionProgress = lv_label_create(lv_scr_act(), nullptr);
   lv_obj_set_style_local_text_color(lblSessionProgress, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::lightGray);
   lv_label_set_text_static(lblSessionProgress, "Session 1/4");
-  lv_obj_align(lblSessionProgress, progressBar, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
+  lv_obj_set_hidden(lblSessionProgress, true);
 
   // Create control buttons row
   btnStartPause = lv_btn_create(lv_scr_act(), nullptr);
@@ -110,6 +121,11 @@ PomodoroTimer::~PomodoroTimer() {
     lv_task_del(taskHideNotification);
   }
 
+  // Clean up vibration pattern task if it exists
+  if (taskVibrationPattern != nullptr) {
+    lv_task_del(taskVibrationPattern);
+  }
+
   // Clean up refresh task
   lv_task_del(taskRefresh);
 
@@ -122,34 +138,34 @@ PomodoroTimer::~PomodoroTimer() {
 void PomodoroTimer::Refresh() {
   auto& pomodoroController = controllers.pomodoroController;
 
-  // Check for midnight reset (this will reset statistics if a new day has started)
   pomodoroController.CheckAndResetDailyStatistics();
 
-  // Update time display - always update to ensure seconds are shown
-  auto timeRemaining = pomodoroController.GetTimeRemaining();
-  auto seconds = std::chrono::duration_cast<std::chrono::seconds>(timeRemaining);
-
-  // Always update the display when timer is active to show seconds counting down
-  if (pomodoroController.GetCurrentState() == Controllers::PomodoroController::SessionState::Active) {
-    displaySeconds = seconds;
-    UpdateTimeDisplay();
+  auto currentState = pomodoroController.GetCurrentState();
+  
+  // Update time display
+  if (currentState == Controllers::PomodoroController::SessionState::Ready) {
+    // When ready, show the duration of the next session
+    auto sessionType = pomodoroController.GetCurrentSessionType();
+    auto duration = GetSessionDurationSeconds(sessionType);
+    displaySeconds = std::chrono::seconds(duration);
+    if (displaySeconds.IsUpdated()) {
+      UpdateTimeDisplay();
+    }
   } else {
-    // When not active, only update if value changed
-    displaySeconds = seconds;
+    // When active or paused, show remaining time
+    auto timeRemaining = pomodoroController.GetTimeRemaining();
+    displaySeconds = std::chrono::duration_cast<std::chrono::seconds>(timeRemaining);
     if (displaySeconds.IsUpdated()) {
       UpdateTimeDisplay();
     }
   }
 
   // Update session state
-  auto currentState = pomodoroController.GetCurrentState();
   displayState = currentState;
   if (displayState.IsUpdated()) {
     UpdateControlButtons();
 
-    // Handle session completion state
     if (currentState == Controllers::PomodoroController::SessionState::Completed) {
-      // The notification is already triggered by the callback, just update UI
       UpdateSessionTypeDisplay();
       ApplySessionTheme();
     }
@@ -186,20 +202,17 @@ void PomodoroTimer::Refresh() {
 
 void PomodoroTimer::UpdateTimeDisplay() {
   auto& pomodoroController = controllers.pomodoroController;
-  auto timeRemaining = pomodoroController.GetTimeRemaining();
 
-  auto totalSeconds = std::chrono::duration_cast<std::chrono::seconds>(timeRemaining).count();
+  auto totalSeconds = displaySeconds.Get().count();
 
   // Ensure we don't display negative time
   if (totalSeconds < 0) {
     totalSeconds = 0;
   }
 
-  auto minutes = totalSeconds / 60;
-  auto seconds = totalSeconds % 60;
-
-  // Format time display with proper zero padding
-  lv_label_set_text_fmt(lblTime, "%02ld:%02ld", minutes, seconds);
+  // Update counter widgets (same as Timer app)
+  minuteCounter.SetValue(totalSeconds / 60);
+  secondCounter.SetValue(totalSeconds % 60);
 
   // Update progress bar with session-specific durations
   // Get durations from settings or use defaults
@@ -314,13 +327,10 @@ void PomodoroTimer::ApplySessionTheme() {
 
   // Apply theme to time display - make it more prominent during work sessions
   if (sessionType == Controllers::PomodoroController::SessionType::Work) {
-    lv_obj_set_style_local_text_color(lblTime, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_WHITE);
-    // Use consistent font size for better layout
-    lv_obj_set_style_local_text_font(lblTime, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_42);
+    lv_obj_set_style_local_text_color(colonLabel, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_WHITE);
   } else {
     // Softer appearance for break sessions
-    lv_obj_set_style_local_text_color(lblTime, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, secondaryColor);
-    lv_obj_set_style_local_text_font(lblTime, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_42);
+    lv_obj_set_style_local_text_color(colonLabel, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, secondaryColor);
   }
 
   // Apply theme to session progress indicators
@@ -442,6 +452,14 @@ void PomodoroTimer::HandleSessionCompletion() {
   UpdateSessionTypeDisplay();
   UpdateProgressDisplay();
   ApplySessionTheme();
+  
+  // Update time display to show the duration of the next session
+  auto& pomodoroController = controllers.pomodoroController;
+  auto sessionType = pomodoroController.GetCurrentSessionType();
+  auto duration = GetSessionDurationSeconds(sessionType);
+  
+  minuteCounter.SetValue(duration / 60);
+  secondCounter.SetValue(0);
 }
 
 void PomodoroTimer::ResetEventHandler(lv_obj_t* obj, lv_event_t event) {
@@ -512,7 +530,7 @@ void PomodoroTimer::UpdateProgressBarColor(int remainingSeconds, int totalDurati
 void PomodoroTimer::ApplyPausedStateTheme() {
   // Apply visual indicators for paused state
   // Dim the time display to indicate paused state
-  lv_obj_set_style_local_text_color(lblTime, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::lightGray);
+  lv_obj_set_style_local_text_color(colonLabel, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::lightGray);
 
   // Add blinking effect to session type label to indicate paused state
   lv_obj_set_style_local_text_color(lblSessionType, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::orange);
@@ -535,14 +553,17 @@ void PomodoroTimer::ShowSessionCompletionNotification() {
   auto& pomodoroController = controllers.pomodoroController;
   auto sessionType = pomodoroController.GetCurrentSessionType();
 
-  // Trigger vibration feedback based on session type
-  if (sessionType == Controllers::PomodoroController::SessionType::Work) {
-    // Work session completed - longer vibration
-    controllers.motorController.RunForDuration(90);
-  } else {
-    // Break completed - shorter vibration
-    controllers.motorController.RunForDuration(60);
+  // Start vibration pattern: 3 short + 1 long
+  vibrationStep = 0;
+  if (taskVibrationPattern != nullptr) {
+    lv_task_del(taskVibrationPattern);
   }
+  // First vibration starts immediately
+  controllers.motorController.RunForDuration(50);
+  vibrationStep = 1;
+  // Schedule next vibrations
+  taskVibrationPattern = lv_task_create(VibrationPatternCallback, 200, LV_TASK_PRIO_MID, this);
+  lv_task_set_repeat_count(taskVibrationPattern, 3); // 3 more vibrations
 
   // Create notification container if it doesn't exist
   if (notificationContainer == nullptr) {
@@ -606,4 +627,24 @@ void PomodoroTimer::HideNotificationCallback(lv_task_t* task) {
 void PomodoroTimer::RefreshTaskCallback(lv_task_t* task) {
   auto* screen = static_cast<PomodoroTimer*>(task->user_data);
   screen->Refresh();
+}
+
+void PomodoroTimer::VibrationPatternCallback(lv_task_t* task) {
+  auto* screen = static_cast<PomodoroTimer*>(task->user_data);
+  
+  // Vibration pattern: 3 short (50ms) + 1 long (150ms)
+  if (screen->vibrationStep < 3) {
+    // Short vibrations
+    screen->controllers.motorController.RunForDuration(50);
+  } else if (screen->vibrationStep == 3) {
+    // Final long vibration
+    screen->controllers.motorController.RunForDuration(150);
+    // Clean up task
+    if (screen->taskVibrationPattern != nullptr) {
+      lv_task_del(screen->taskVibrationPattern);
+      screen->taskVibrationPattern = nullptr;
+    }
+  }
+  
+  screen->vibrationStep++;
 }
