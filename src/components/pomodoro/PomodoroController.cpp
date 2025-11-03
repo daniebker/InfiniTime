@@ -224,10 +224,10 @@ void PomodoroController::FormatTimeRemaining(char* buffer, size_t bufferSize) co
     totalSeconds = 0;
   }
   
-  long long int minutes = totalSeconds / 60;
-  long long int seconds = totalSeconds % 60;
+  int minutes = static_cast<int>(totalSeconds / 60);
+  int seconds = static_cast<int>(totalSeconds % 60);
   
-  snprintf(buffer, bufferSize, "%02lld:%02lld", minutes, seconds);
+  snprintf(buffer, bufferSize, "%02d:%02d", minutes, seconds);
 }
 
 void PomodoroController::TimerCallbackStatic(TimerHandle_t xTimer) {
