@@ -201,8 +201,6 @@ void PomodoroTimer::Refresh() {
 }
 
 void PomodoroTimer::UpdateTimeDisplay() {
-  auto& pomodoroController = controllers.pomodoroController;
-
   auto totalSeconds = displaySeconds.Get().count();
 
   // Ensure we don't display negative time
@@ -216,6 +214,7 @@ void PomodoroTimer::UpdateTimeDisplay() {
 
   // Update progress bar with session-specific durations
   // Get durations from settings or use defaults
+  auto& pomodoroController = controllers.pomodoroController;
   auto sessionType = pomodoroController.GetCurrentSessionType();
   int totalDuration = GetSessionDurationSeconds(sessionType);
 
@@ -422,7 +421,6 @@ void PomodoroTimer::StartPauseEventHandler(lv_obj_t* obj, lv_event_t event) {
 
   switch (currentState) {
     case Controllers::PomodoroController::SessionState::Ready:
-      // Start appropriate session type
       if (currentSessionType == Controllers::PomodoroController::SessionType::Work) {
         pomodoroController.StartWorkSession();
       } else {
@@ -439,8 +437,9 @@ void PomodoroTimer::StartPauseEventHandler(lv_obj_t* obj, lv_event_t event) {
       break;
 
     case Controllers::PomodoroController::SessionState::Completed:
-      // Handle transition to next session type
-      screen->HandleSessionCompletion();
+      // Start the next session using the controller's logic
+      screen->controllers.pomodoroController.StartNextSession();
+      screen->UpdateControlButtons();
       break;
   }
 

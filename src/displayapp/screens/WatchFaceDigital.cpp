@@ -13,6 +13,7 @@
 #include "components/motion/MotionController.h"
 #include "components/ble/SimpleWeatherService.h"
 #include "components/settings/Settings.h"
+#include "components/pomodoro/PomodoroController.h"
 
 using namespace Pinetime::Applications::Screens;
 
@@ -24,7 +25,8 @@ WatchFaceDigital::WatchFaceDigital(Controllers::DateTime& dateTimeController,
                                    Controllers::Settings& settingsController,
                                    Controllers::HeartRateController& heartRateController,
                                    Controllers::MotionController& motionController,
-                                   Controllers::SimpleWeatherService& weatherService)
+                                   Controllers::SimpleWeatherService& weatherService,
+                                   Controllers::PomodoroController& pomodoroController)
   : currentDateTime {{}},
     dateTimeController {dateTimeController},
     notificationManager {notificationManager},
@@ -32,6 +34,7 @@ WatchFaceDigital::WatchFaceDigital(Controllers::DateTime& dateTimeController,
     heartRateController {heartRateController},
     motionController {motionController},
     weatherService {weatherService},
+    pomodoroController {pomodoroController},
     statusIcons(batteryController, bleController, alarmController) {
 
   statusIcons.Create();
@@ -75,6 +78,17 @@ WatchFaceDigital::WatchFaceDigital(Controllers::DateTime& dateTimeController,
   lv_obj_set_style_local_text_color(heartbeatValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, lv_color_hex(0xCE1B1B));
   lv_label_set_text_static(heartbeatValue, "");
   lv_obj_align(heartbeatValue, heartbeatIcon, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
+
+  // Pomodoro timer display (next to heart rate, with space for 3-digit HR)
+  pomodoroIcon = lv_label_create(lv_scr_act(), nullptr);
+  lv_label_set_text_static(pomodoroIcon, Symbols::stopWatch);
+  lv_obj_set_style_local_text_color(pomodoroIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, lv_color_hex(0x999999));
+  lv_obj_align(pomodoroIcon, heartbeatValue, LV_ALIGN_OUT_RIGHT_MID, 25, 0);
+
+  pomodoroValue = lv_label_create(lv_scr_act(), nullptr);
+  lv_obj_set_style_local_text_color(pomodoroValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, lv_color_hex(0x999999));
+  lv_label_set_text_static(pomodoroValue, "");
+  lv_obj_align(pomodoroValue, pomodoroIcon, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
 
   stepValue = lv_label_create(lv_scr_act(), nullptr);
   lv_obj_set_style_local_text_color(stepValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, lv_color_hex(0x00FFE7));
@@ -190,5 +204,38 @@ void WatchFaceDigital::Refresh() {
     }
     lv_obj_realign(temperature);
     lv_obj_realign(weatherIcon);
+  }
+
+  // Update pomodoro timer display
+  pomodoroState = pomodoroController.GetCurrentState();
+  pomodoroSessionType = pomodoroController.GetCurrentSessionType();
+  auto timeRemaining = pomodoroController.GetTimeRemaining();
+  pomodoroTimeRemaining = std::chrono::duration_cast<std::chrono::seconds>(timeRemaining);
+
+  if (pomodoroState.IsUpdated() || pomodoroTimeRemaining.IsUpdated() || pomodoroSessionType.IsUpdated()) {
+    if (pomodoroState.Get() == Controllers::PomodoroController::SessionState::Active) {
+      // Show timer when active
+      char timeBuffer[16];
+      pomodoroController.FormatTimeRemaining(timeBuffer, sizeof(timeBuffer));
+
+      // Color based on session type: current color for work, green for breaks
+      lv_color_t pomodoroColor;
+      if (pomodoroSessionType.Get() == Controllers::PomodoroController::SessionType::Work) {
+        pomodoroColor = lv_color_hex(0xFF6B35); // Orange for work
+      } else {
+        pomodoroColor = lv_color_hex(0x00FF00); // Green for breaks
+      }
+
+      lv_label_set_text(pomodoroValue, timeBuffer);
+      lv_obj_set_style_local_text_color(pomodoroIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, pomodoroColor);
+      lv_obj_set_style_local_text_color(pomodoroValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, pomodoroColor);
+    } else {
+      // Hide when not active
+      lv_label_set_text_static(pomodoroValue, "");
+      lv_obj_set_style_local_text_color(pomodoroIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, lv_color_hex(0x1B1B1B));
+    }
+
+    lv_obj_realign(pomodoroIcon);
+    lv_obj_realign(pomodoroValue);
   }
 }

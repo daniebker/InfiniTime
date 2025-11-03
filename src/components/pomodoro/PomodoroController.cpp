@@ -39,6 +39,15 @@ void PomodoroController::StartBreak() {
   timer.StartTimer(duration);
 }
 
+void PomodoroController::StartNextSession() {
+  if (currentState != SessionState::Ready) {
+    return;
+  }
+  TransitionToActive();
+  auto duration = GetSessionDuration(currentSessionType);
+  timer.StartTimer(duration);
+}
+
 void PomodoroController::PauseSession() {
   if (currentState != SessionState::Active) {
     return;
@@ -192,6 +201,33 @@ std::chrono::minutes PomodoroController::GetDailyWorkTime() const {
 
 void PomodoroController::CheckAndResetDailyStatistics() {
   sessionStatistics.CheckAndResetIfNewDay();
+}
+
+const char* PomodoroController::GetSessionTypeIndicator() const {
+  switch (currentSessionType) {
+    case SessionType::Work:
+      return "W";
+    case SessionType::ShortBreak:
+      return "S";
+    case SessionType::LongBreak:
+      return "L";
+    default:
+      return "";
+  }
+}
+
+void PomodoroController::FormatTimeRemaining(char* buffer, size_t bufferSize) const {
+  auto timeRemaining = const_cast<PomodoroController*>(this)->GetTimeRemaining();
+  auto totalSeconds = std::chrono::duration_cast<std::chrono::seconds>(timeRemaining).count();
+  
+  if (totalSeconds < 0) {
+    totalSeconds = 0;
+  }
+  
+  long long int minutes = totalSeconds / 60;
+  long long int seconds = totalSeconds % 60;
+  
+  snprintf(buffer, bufferSize, "%02lld:%02lld", minutes, seconds);
 }
 
 void PomodoroController::TimerCallbackStatic(TimerHandle_t xTimer) {

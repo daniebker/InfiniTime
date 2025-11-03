@@ -161,11 +161,11 @@ WatchFaceCasioStyleG7710::WatchFaceCasioStyleG7710(Controllers::DateTime& dateTi
   lv_label_set_text_static(heartbeatValue, "");
   lv_obj_align(heartbeatValue, heartbeatIcon, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
 
-  // Pomodoro timer display (centered between heartbeat and steps)
+  // Pomodoro timer display (next to heart rate, with space for 3-digit HR)
   pomodoroIcon = lv_label_create(lv_scr_act(), nullptr);
   lv_label_set_text_static(pomodoroIcon, Symbols::stopWatch);
   lv_obj_set_style_local_text_color(pomodoroIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color_text);
-  lv_obj_align(pomodoroIcon, lv_scr_act(), LV_ALIGN_IN_BOTTOM_MID, -20, -2);
+  lv_obj_align(pomodoroIcon, heartbeatValue, LV_ALIGN_OUT_RIGHT_MID, 25, 0);
 
   pomodoroValue = lv_label_create(lv_scr_act(), nullptr);
   lv_obj_set_style_local_text_color(pomodoroValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color_text);
@@ -334,22 +334,20 @@ void WatchFaceCasioStyleG7710::Refresh() {
   if (pomodoroState.IsUpdated() || pomodoroTimeRemaining.IsUpdated() || pomodoroSessionType.IsUpdated()) {
     if (pomodoroState.Get() == Controllers::PomodoroController::SessionState::Active) {
       // Show timer when active
-      auto totalSeconds = pomodoroTimeRemaining.Get().count();
-      auto minutes = totalSeconds / 60;
-      auto seconds = totalSeconds % 60;
+      char timeBuffer[16];
+      pomodoroController.FormatTimeRemaining(timeBuffer, sizeof(timeBuffer));
       
-      // Show session indicator: W=Work, S=Short break, L=Long break
-      const char* sessionIndicator = "";
+      // Color based on session type: current color for work, green for breaks
+      lv_color_t pomodoroColor;
       if (pomodoroSessionType.Get() == Controllers::PomodoroController::SessionType::Work) {
-        sessionIndicator = "W";
-      } else if (pomodoroSessionType.Get() == Controllers::PomodoroController::SessionType::ShortBreak) {
-        sessionIndicator = "S";
+        pomodoroColor = color_text; // Current theme color for work
       } else {
-        sessionIndicator = "L";
+        pomodoroColor = lv_color_hex(0x00FF00); // Green for breaks
       }
       
-      lv_label_set_text_fmt(pomodoroValue, "%s %02ld:%02ld", sessionIndicator, minutes, seconds);
-      lv_obj_set_style_local_text_color(pomodoroIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color_text);
+      lv_label_set_text(pomodoroValue, timeBuffer);
+      lv_obj_set_style_local_text_color(pomodoroIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, pomodoroColor);
+      lv_obj_set_style_local_text_color(pomodoroValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, pomodoroColor);
     } else {
       // Hide when not active
       lv_label_set_text_static(pomodoroValue, "");

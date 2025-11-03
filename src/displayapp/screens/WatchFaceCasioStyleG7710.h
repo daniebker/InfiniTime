@@ -9,6 +9,7 @@
 #include "displayapp/screens/Screen.h"
 #include "components/datetime/DateTimeController.h"
 #include "components/ble/BleController.h"
+#include "components/pomodoro/PomodoroController.h"
 #include "utility/DirtyValue.h"
 #include "displayapp/apps/Apps.h"
 
