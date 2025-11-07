@@ -8,6 +8,7 @@
 #include "components/datetime/DateTimeController.h"
 #include "components/ble/SimpleWeatherService.h"
 #include "components/ble/BleController.h"
+#include "components/pomodoro/PomodoroController.h"
 #include "displayapp/widgets/StatusIcons.h"
 #include "utility/DirtyValue.h"
 #include "displayapp/apps/Apps.h"
@@ -36,7 +37,8 @@ namespace Pinetime {
                          Controllers::Settings& settingsController,
                          Controllers::HeartRateController& heartRateController,
                          Controllers::MotionController& motionController,
-                         Controllers::SimpleWeatherService& weather);
+                         Controllers::SimpleWeatherService& weather,
+                         Controllers::PomodoroController& pomodoroController);
         ~WatchFaceDigital() override;
 
         void Refresh() override;
@@ -53,6 +55,10 @@ namespace Pinetime {
         Utility::DirtyValue<std::optional<Pinetime::Controllers::SimpleWeatherService::CurrentWeather>> currentWeather {};
 
         Utility::DirtyValue<std::chrono::time_point<std::chrono::system_clock, std::chrono::days>> currentDate;
+        
+        Utility::DirtyValue<std::chrono::seconds> pomodoroTimeRemaining {};
+        Utility::DirtyValue<Controllers::PomodoroController::SessionState> pomodoroState {};
+        Utility::DirtyValue<Controllers::PomodoroController::SessionType> pomodoroSessionType {};
 
         lv_obj_t* label_time;
         lv_obj_t* label_time_ampm;
@@ -64,6 +70,8 @@ namespace Pinetime {
         lv_obj_t* notificationIcon;
         lv_obj_t* weatherIcon;
         lv_obj_t* temperature;
+        lv_obj_t* pomodoroIcon;
+        lv_obj_t* pomodoroValue;
 
         Controllers::DateTime& dateTimeController;
         Controllers::NotificationManager& notificationManager;
@@ -71,6 +79,7 @@ namespace Pinetime {
         Controllers::HeartRateController& heartRateController;
         Controllers::MotionController& motionController;
         Controllers::SimpleWeatherService& weatherService;
+        Controllers::PomodoroController& pomodoroController;
 
         lv_task_t* taskRefresh;
         Widgets::StatusIcons statusIcons;
@@ -91,7 +100,8 @@ namespace Pinetime {
                                              controllers.settingsController,
                                              controllers.heartRateController,
                                              controllers.motionController,
-                                             *controllers.weatherController);
+                                             *controllers.weatherController,
+                                             controllers.pomodoroController);
       };
 
       static bool IsAvailable(Pinetime::Controllers::FS& /*filesystem*/) {

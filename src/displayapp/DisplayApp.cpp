@@ -31,6 +31,7 @@
 #include "displayapp/screens/PassKey.h"
 #include "displayapp/screens/Error.h"
 #include "displayapp/screens/Calculator.h"
+#include "displayapp/screens/PomodoroTimer.h"
 
 #include "drivers/Cst816s.h"
 #include "drivers/St7789.h"
@@ -52,6 +53,7 @@
 #include "displayapp/screens/settings/SettingShakeThreshold.h"
 #include "displayapp/screens/settings/SettingBluetooth.h"
 #include "displayapp/screens/settings/SettingOTA.h"
+#include "displayapp/screens/settings/SettingPomodoro.h"
 
 #include "libs/lv_conf.h"
 #include "UserApps.h"
@@ -108,6 +110,7 @@ DisplayApp::DisplayApp(Drivers::St7789& lcd,
     spiNorFlash {spiNorFlash},
     lvgl {lcd, filesystem},
     timer(this, TimerCallback),
+    pomodoroController(settingsController, dateTimeController),
     controllers {batteryController,
                  bleController,
                  dateTimeController,
@@ -126,7 +129,8 @@ DisplayApp::DisplayApp(Drivers::St7789& lcd,
                  this,
                  lvgl,
                  nullptr,
-                 nullptr} {
+                 nullptr,
+                 pomodoroController} {
 }
 
 void DisplayApp::Start(System::BootErrors error) {
@@ -630,6 +634,9 @@ void DisplayApp::LoadScreen(Apps app, DisplayApp::FullRefreshDirections directio
       break;
     case Apps::SettingOTA:
       currentScreen = std::make_unique<Screens::SettingOTA>(this, settingsController);
+      break;
+    case Apps::SettingPomodoro:
+      currentScreen = std::make_unique<Screens::SettingPomodoro>(settingsController);
       break;
     case Apps::BatteryInfo:
       currentScreen = std::make_unique<Screens::BatteryInfo>(batteryController);

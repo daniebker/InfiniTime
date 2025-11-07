@@ -1,4 +1,5 @@
 .idea/
+.kiro/
 # Python virtual environment for DFU images
 .venv/
 
@@ -55,3 +56,4 @@ src/arm-none-eabi
 node_modules
 package.json
 package-lock.json
+.aider*

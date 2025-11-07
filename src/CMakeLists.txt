@@ -392,6 +392,7 @@ list(APPEND SOURCE_FILES
         displayapp/screens/BatteryInfo.cpp
         displayapp/screens/Steps.cpp
         displayapp/screens/Timer.cpp
+        displayapp/screens/PomodoroTimer.cpp
         displayapp/screens/Dice.cpp
         displayapp/screens/PassKey.cpp
         displayapp/screens/Error.cpp
@@ -421,6 +422,7 @@ list(APPEND SOURCE_FILES
         displayapp/screens/settings/SettingShakeThreshold.cpp
         displayapp/screens/settings/SettingBluetooth.cpp
         displayapp/screens/settings/SettingOTA.cpp
+        displayapp/screens/settings/SettingPomodoro.cpp
 
         ## Watch faces
         displayapp/screens/WatchFaceAnalog.cpp
@@ -470,6 +472,8 @@ list(APPEND SOURCE_FILES
         components/motor/MotorController.cpp
         components/settings/Settings.cpp
         components/timer/Timer.cpp
+        components/pomodoro/PomodoroController.cpp
+        components/pomodoro/SessionStatistics.cpp
         components/stopwatch/StopWatchController.cpp
         components/alarm/AlarmController.cpp
         components/fs/FS.cpp
@@ -660,6 +664,8 @@ set(INCLUDE_FILES
         components/ble/SimpleWeatherService.h
         components/settings/Settings.h
         components/timer/Timer.h
+        components/pomodoro/PomodoroController.h
+        components/pomodoro/SessionStatistics.h
         components/stopwatch/StopWatchController.h
         components/alarm/AlarmController.h
         drivers/Cst816s.h

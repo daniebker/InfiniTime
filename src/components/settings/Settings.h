@@ -42,6 +42,15 @@ namespace Pinetime {
       enum class PrideFlag : uint8_t { Gay, Trans, Bi, Lesbian };
       enum class DfuAndFsMode : uint8_t { Disabled, Enabled, EnabledTillReboot };
 
+      enum class PomodoroWorkDuration : uint8_t { Minutes25 = 25, Minutes50 = 50 };
+
+      struct PomodoroData {
+        PomodoroWorkDuration workDuration = PomodoroWorkDuration::Minutes25;
+        uint8_t shortBreakMinutes = 5;
+        uint8_t longBreakMinutes = 10;
+        uint8_t sessionsBeforeLongBreak = 4;
+      };
+
       struct PineTimeStyle {
         Colors ColorTime = Colors::Teal;
         Colors ColorBar = Colors::Teal;
@@ -336,6 +345,51 @@ namespace Pinetime {
         return (settings.dfuAndFsEnabledOnBoot ? DfuAndFsMode::Enabled : DfuAndFsMode::Disabled);
       };
 
+      void SetPomodoroWorkDuration(PomodoroWorkDuration duration) {
+        if (duration != settings.pomodoro.workDuration) {
+          settingsChanged = true;
+        }
+        settings.pomodoro.workDuration = duration;
+      };
+
+      PomodoroWorkDuration GetPomodoroWorkDuration() const {
+        return settings.pomodoro.workDuration;
+      };
+
+      void SetPomodoroShortBreakMinutes(uint8_t minutes) {
+        if (minutes != settings.pomodoro.shortBreakMinutes) {
+          settingsChanged = true;
+        }
+        settings.pomodoro.shortBreakMinutes = minutes;
+      };
+
+      uint8_t GetPomodoroShortBreakMinutes() const {
+        return settings.pomodoro.shortBreakMinutes;
+      };
+
+      void SetPomodoroLongBreakMinutes(uint8_t minutes) {
+        if (minutes != settings.pomodoro.longBreakMinutes) {
+          settingsChanged = true;
+        }
+        settings.pomodoro.longBreakMinutes = minutes;
+      };
+
+      uint8_t GetPomodoroLongBreakMinutes() const {
+        return settings.pomodoro.longBreakMinutes;
+      };
+
+      void SetPomodoroSessionsBeforeLongBreak(uint8_t sessions) {
+        if (sessions < 2) sessions = 2;
+        if (sessions > 8) sessions = 8;
+        if (sessions != settings.pomodoro.sessionsBeforeLongBreak) {
+          settingsChanged = true;
+        }
+        settings.pomodoro.sessionsBeforeLongBreak = sessions;
+      };
+
+      uint8_t GetPomodoroSessionsBeforeLongBreak() const {
+        return settings.pomodoro.sessionsBeforeLongBreak;
+      };
       std::optional<uint16_t> GetHeartRateBackgroundMeasurementInterval() const {
         if (settings.heartRateBackgroundPeriod == std::numeric_limits<uint16_t>::max()) {
           return std::nullopt;
@@ -382,6 +436,8 @@ namespace Pinetime {
         Controllers::BrightnessController::Levels brightLevel = Controllers::BrightnessController::Levels::Medium;
 
         bool dfuAndFsEnabledOnBoot = false;
+
+        PomodoroData pomodoro;
         uint16_t heartRateBackgroundPeriod = std::numeric_limits<uint16_t>::max(); // Disabled by default
       };
 

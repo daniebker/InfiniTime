@@ -6,6 +6,7 @@
 #include "displayapp/screens/ScreenList.h"
 #include "displayapp/screens/Symbols.h"
 #include "displayapp/screens/List.h"
+#include "displayapp/apps/Apps.h"
 
 namespace Pinetime {
 
@@ -47,9 +48,15 @@ namespace Pinetime {
           {Symbols::tachometer, "Shake Calib.", Apps::SettingShakeThreshold},
           {Symbols::check, "Firmware", Apps::FirmwareValidation},
 
+          {Symbols::clock, "Pomodoro", Apps::SettingPomodoro},
           {Symbols::shieldAlt, "Over-the-air", Apps::SettingOTA},
           {Symbols::bluetooth, "Bluetooth", Apps::SettingBluetooth},
           {Symbols::list, "About", Apps::SysInfo},
+
+          // {Symbols::none, "None", Apps::None},
+          // {Symbols::none, "None", Apps::None},
+          // {Symbols::none, "None", Apps::None},
+
         }};
         ScreenList<nScreens> screens;
       };
