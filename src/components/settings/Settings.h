@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdint>
 #include <bitset>
+#include <limits>
+#include <optional>
 #include "components/brightness/BrightnessController.h"
 #include "components/fs/FS.h"
 #include "displayapp/apps/Apps.h"
@@ -388,11 +390,25 @@ namespace Pinetime {
       uint8_t GetPomodoroSessionsBeforeLongBreak() const {
         return settings.pomodoro.sessionsBeforeLongBreak;
       };
+      std::optional<uint16_t> GetHeartRateBackgroundMeasurementInterval() const {
+        if (settings.heartRateBackgroundPeriod == std::numeric_limits<uint16_t>::max()) {
+          return std::nullopt;
+        }
+        return settings.heartRateBackgroundPeriod;
+      }
+
+      void SetHeartRateBackgroundMeasurementInterval(std::optional<uint16_t> newIntervalInSeconds) {
+        newIntervalInSeconds = newIntervalInSeconds.value_or(std::numeric_limits<uint16_t>::max());
+        if (newIntervalInSeconds != settings.heartRateBackgroundPeriod) {
+          settingsChanged = true;
+        }
+        settings.heartRateBackgroundPeriod = newIntervalInSeconds.value();
+      }
 
     private:
       Pinetime::Controllers::FS& fs;
 
-      static constexpr uint32_t settingsVersion = 0x000A;
+      static constexpr uint32_t settingsVersion = 0x000a;
 
       struct SettingsData {
         uint32_t version = settingsVersion;
@@ -422,6 +438,7 @@ namespace Pinetime {
         bool dfuAndFsEnabledOnBoot = false;
 
         PomodoroData pomodoro;
+        uint16_t heartRateBackgroundPeriod = std::numeric_limits<uint16_t>::max(); // Disabled by default
       };
 
       SettingsData settings;
